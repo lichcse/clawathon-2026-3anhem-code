@@ -83,7 +83,6 @@ func (u *UserHandler) Detail(ctx *gin.Context) {
 
 	userDetailResponse, err := u.userService.Detail(uint64(id))
 	u.response.Out(ctx, err, userDetailResponse)
-	return
 }
 
 // Update func
