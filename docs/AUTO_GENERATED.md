@@ -1,78 +1,73 @@
-# API Tài Khoản Người Dùng: Tạo Người Dùng Mới
+# API Tài Khoản Người Dùng: Tạo Mới (Create User)
 
-## 1. Tổng quan (Overview)
+## 📖 Tổng Quan (Overview)
 
-**Mục đích:**  
-API này cho phép hệ thống tạo một tài khoản người dùng mới trong cơ sở dữ liệu quản lý danh tính (Identity Management). Đây là bước đầu tiên để một người dùng có thể đăng nhập và sử dụng các dịch vụ của hệ thống.
+API này cho phép hệ thống tạo một tài khoản người dùng mới trong cơ sở dữ liệu Identity. Đây là bước đầu tiên để một khách hàng hoặc nhân viên đăng ký vào hệ thống Clawathon 2026.
 
-**Đối tượng sử dụng:**  
-- **Người dùng cuối:** Cần đăng ký tài khoản mới.
-- **Nhà phát triển (Developer):** Cần tích hợp chức năng đăng ký vào ứng dụng Frontend hoặc Mobile App.
+*   **Đối tượng sử dụng:** Ứng dụng Frontend (Web/Mobile), Hệ thống đối tác tích hợp.
+*   **Mục đích:** Lưu trữ thông tin đăng nhập và hồ sơ cơ bản của người dùng.
+*   **Quyền hạn:** Công khai (Public) - Không cần token xác thực để gọi API đăng ký.
 
 ---
 
-## 2. Thông tin Endpoint
+## 🔌 Thông Tin Kỹ Thuật (Technical Specifications)
 
 | Thuộc tính | Giá trị |
 | :--- | :--- |
-| **Phương thức** | `POST` |
-| **Đường dẫn (Path)** | `/identity/v1/user` |
-| **Nhóm (Tag)** | `identity` |
-| **Accept** | `application/json` |
-| **Produce** | `application/json` |
+| **Endpoint** | `/identity/v1/user` |
+| **HTTP Method** | `POST` |
+| **Content-Type** | `application/json` |
+| **Version** | v1 |
+| **Module** | Identity |
 
----
+### Tham Số Đầu Vào (Request Parameters)
 
-## 3. Tham số đầu vào (Request Parameters)
+#### 1. Query Parameters (Tham số truy vấn)
 
-### 3.1. Tham số Query (Optional)
-
-Tham số được gửi kèm theo URL để tùy chỉnh phản hồi.
-
-| Tên tham số | Kiểu dữ liệu | Bắt buộc | Mô tả | Giá trị mặc định |
+| Tên | Kiểu | Bắt Buộc | Mô Tả | Ví Dụ |
 | :--- | :--- | :--- | :--- | :--- |
-| `lang` | String | Không | Ngôn ngữ hiển thị thông báo lỗi/thành công | `vi` |
-| **Giá trị cho phép** | | | `en`, `vi` | |
+| `lang` | String | Không | Ngôn ngữ phản hồi lỗi/thông báo | `vi`, `en` |
 
-### 3.2. Thân yêu cầu (Body)
+#### 2. Body Parameters (Nội dung yêu cầu)
 
-Dữ liệu người dùng cần cung cấp để tạo tài khoản. Cấu trúc tuân theo schema `UserAddRequest`.
+Dữ liệu gửi đi ở định dạng JSON theo cấu trúc `UserAddRequest`. Dưới đây là các trường phổ biến (tùy thuộc vào định nghĩa schema cụ thể):
 
 ```json
 {
-  "username": "string",
-  "email": "string",
-  "password": "string",
-  "full_name": "string"
+  "email": "user@example.com",
+  "password": "SecurePassword123!",
+  "full_name": "Nguyễn Văn A",
+  "phone_number": "0901234567"
 }
 ```
 
-> **Lưu ý:** Các trường cụ thể trong `UserAddRequest` phụ thuộc vào định nghĩa schema thực tế trong dự án. Ví dụ trên là các trường phổ biến.
+> **Lưu ý:** Các trường bắt buộc sẽ được kiểm tra bởi lớp `validation.UserValidation`. Nếu thiếu trường bắt buộc, hệ thống sẽ trả về lỗi 400.
 
 ---
 
-## 4. Phản hồi (Response)
+## 📤 Phản Hồi (Response)
 
-### 4.1. Thành công (Success - 200 OK)
+### Trường Hợp Thành Công (Success - 200 OK)
 
-Khi người dùng được tạo thành công, hệ thống trả về đối tượng `UserDetailResponse`.
+Hệ thống trả về thông tin chi tiết của người dùng vừa được tạo.
 
 ```json
 {
   "code": 200,
   "message": "success",
   "data": {
-    "id": "uuid-hoặc-id-số",
-    "username": "lich_tv",
-    "email": "lich@example.com",
-    "created_at": "2023-10-27T10:00:00Z"
+    "id": "uuid-v123-xyz",
+    "email": "user@example.com",
+    "full_name": "Nguyễn Văn A",
+    "created_at": "2026-01-01T10:00:00Z",
+    "status": "active"
   }
 }
 ```
 
-### 4.2. Thất bại (Error)
+### Trường Hợp Thất Bại (Error)
 
-Nếu xảy ra lỗi (thiếu dữ liệu, định dạng sai, trùng tên...), hệ thống sẽ trả về mã lỗi tương ứng.
+Nếu xảy ra lỗi (ví dụ: Email đã tồn tại, mật khẩu yếu, định dạng sai), hệ thống sẽ trả về mã lỗi tương ứng.
 
 ```json
 {
@@ -84,81 +79,81 @@ Nếu xảy ra lỗi (thiếu dữ liệu, định dạng sai, trùng tên...), 
 
 ---
 
-## 5. Ví dụ CURL (Curl Example)
+## 🛠️ Ví Dụ Thực Hành (CURL Example)
 
-Dưới đây là ví dụ cách gọi API bằng lệnh CURL từ terminal.
+Dưới đây là lệnh mẫu để gọi API từ dòng lệnh (Terminal/CMD):
 
 ```bash
-curl --location 'https://api.example.com/identity/v1/user?lang=vi' \
+curl --location 'https://api.clawathon.com/identity/v1/user?lang=vi' \
 --header 'Content-Type: application/json' \
 --data '{
-    "username": "lich_tv",
-    "email": "lich@example.com",
-    "password": "SecurePassword123!",
-    "full_name": "Lich TV"
+    "email": "lich.tv@example.com",
+    "password": "StrongPass#2026",
+    "full_name": "Lich TV",
+    "phone_number": "0912345678"
 }'
 ```
 
 ---
 
-## 6. Luồng xử lý (Sequence Diagram)
+## 🔄 Luồng Xử Lý (Sequence Diagram)
 
-Biểu đồ dưới đây mô tả luồng đi của dữ liệu khi API nhận yêu cầu tạo người dùng mới.
+Biểu đồ dưới đây mô tả luồng xử lý nội bộ khi API nhận được yêu cầu tạo người dùng mới.
 
 ```mermaid
 sequenceDiagram
-    participant Client as Client/App
-    participant Handler as HTTP Handler (user.go)
-    participant Validator as Validation Layer
-    participant Service as User Service
+    participant Client as Client (App/Web)
+    participant Handler as UserHandler (HTTP)
+    participant Validator as UserValidation
+    participant Service as UserService
     participant DB as Database
 
-    Client->>Handler: POST /identity/v1/user (JSON Body)
+    Client->>Handler: POST /identity/v1/user
     activate Handler
     
-    Handler->>Handler: Bind JSON Data
-    alt Bind Failed
-        Handler-->>Client: Return Error (not_allow)
-    else Bind Success
-        Handler->>Validator: Validate Input (Add)
+    Handler->>Handler: Bind JSON Request
+    alt JSON Invalid
+        Handler-->>Client: Return 400 Bad Request
+        deactivate Handler
+    else JSON Valid
+        Handler->>Validator: Validate Data
         activate Validator
-        
         alt Validation Failed
             Validator-->>Handler: Return Error
-            Handler-->>Client: Return Validation Error
-        else Validation Success
-            Validator-->>Handler: Pass
+            Handler-->>Client: Return 400 Validation Error
+            deactivate Validator
+        else Validation Passed
+            Validator-->>Handler: OK
             deactivate Validator
             
             Handler->>Service: Create User
             activate Service
-            Service->>DB: Insert User Record
-            DB-->>Service: Commit Transaction
-            Service-->>Handler: Return User Detail
+            Service->>DB: Insert Record
+            activate DB
+            DB-->>Service: Commit Success
+            deactivate DB
+            Service-->>Handler: User Object
             deactivate Service
             
-            Handler-->>Client: Return 200 OK + UserDetail
+            Handler-->>Client: Return 200 + User Detail
         end
     end
-    
     deactivate Handler
 ```
 
----
+### Giải thích luồng hoạt động:
 
-## 7. Hướng dẫn xử lý lỗi (Troubleshooting)
-
-| Mã lỗi (Code) | Nguyên nhân | Cách khắc phục |
-| :--- | :--- | :--- |
-| `400` | Dữ liệu gửi lên không đúng định dạng JSON hoặc thiếu trường bắt buộc. | Kiểm tra lại cấu trúc Body request. |
-| `400` | Validation lỗi (ví dụ: Email không hợp lệ, Password quá ngắn). | Đọc thông báo `message` chi tiết từ server. |
-| `409` | Tài khoản đã tồn tại (Username hoặc Email trùng). | Yêu cầu người dùng chọn tên khác. |
-| `500` | Lỗi nội bộ server. | Liên hệ đội ngũ vận hành (DevOps/Backend). |
+1.  **Tiếp nhận:** `UserHandler` nhận yêu cầu HTTP từ Client.
+2.  **Gắn kết (Bind):** Chuyển đổi dữ liệu JSON thành object Go. Nếu thất bại, trả lỗi ngay lập tức.
+3.  **Kiểm tra (Validate):** Lớp `UserValidation` đảm bảo dữ liệu hợp lệ (email đúng định dạng, mật khẩu đủ mạnh...).
+4.  **Xử lý nghiệp vụ (Service):** Nếu qua bước validate, `UserService` sẽ thực hiện logic lưu trữ vào Database.
+5.  **Trả kết quả:** Trả về thông tin người dùng nếu thành công hoặc mã lỗi nếu thất bại.
 
 ---
 
-## 8. Ghi chú kỹ thuật (Technical Notes)
+## ⚠️ Lưu Ý Quan Trọng (Notes & Best Practices)
 
-- **Bảo mật:** Mật khẩu (`password`) nên được mã hóa trước khi gửi qua mạng (HTTPS) và luôn được băm (hash) ở phía Server trước khi lưu vào Database.
-- **Idempotency:** API này không đảm bảo tính idempotent. Gọi nhiều lần với cùng dữ liệu có thể tạo ra nhiều tài khoản nếu không kiểm soát trùng lặp ở lớp Service.
-- **Versioning:** API đang ở phiên bản `v1`. Các thay đổi lớn trong tương lai sẽ được nâng lên `v2`.
+1.  **Bảo Mật:** Mật khẩu (`password`) nên được mã hóa (hash) trước khi lưu vào database. API chỉ nhận plaintext password từ client để hash bên server.
+2.  **Ngôn ngữ:** Tham số `lang` giúp hệ thống trả về thông báo lỗi phù hợp với người dùng (Tiếng Việt hoặc Tiếng Anh).
+3.  **Idempotency:** API tạo người dùng không đảm bảo idempotent. Gọi nhiều lần với cùng dữ liệu có thể tạo nhiều tài khoản trùng lặp nếu không có ràng buộc unique trên Database (thường là Unique Index trên `email`).
+4.  **Xác thực:** Sau khi tạo tài khoản thành công, hệ thống thường sẽ yêu cầu người dùng xác minh email hoặc đăng nhập lại để lấy Token.
