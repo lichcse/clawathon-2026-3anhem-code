@@ -18,6 +18,7 @@ import (
 // entity:
 //   - general: 000
 //   - user: 001
+//   - post: 002
 var CodeMessageMapping = response.CodeMessageMapping{
 	"success": response.CodeStatus{
 		Code:   "001.000.000",
@@ -42,5 +43,21 @@ var CodeMessageMapping = response.CodeMessageMapping{
 	"user_invalid_password": response.CodeStatus{
 		Code:   "001.001.004",
 		Status: http.StatusBadRequest,
+	},
+	"post_invalid_title": response.CodeStatus{
+		Code:   "001.002.001",
+		Status: http.StatusBadRequest,
+	},
+	"post_title_too_long": response.CodeStatus{
+		Code:   "001.002.002",
+		Status: http.StatusBadRequest,
+	},
+	"post_invalid_content": response.CodeStatus{
+		Code:   "001.002.003",
+		Status: http.StatusBadRequest,
+	},
+	"post_not_found": response.CodeStatus{
+		Code:   "001.002.004",
+		Status: http.StatusNotFound,
 	},
 }
