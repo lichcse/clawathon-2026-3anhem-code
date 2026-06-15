@@ -3,3 +3,4 @@ kiểm tra các lỗi bảo mật, loop, race condition, crash, SQL injection ..
 Kiểm tra cả config có hợp lệ không, tránh duplicate key config.
 Comment các đoạn code cần sửa, nguyên nhân có thể gây lỗi hoặc cần cải thiện, đưa ra cách sửa nếu được...
 Chỉ tiến hành review khi có sự thay đổi về code và config, ngoài ra thì bỏ qua phần review
+Nếu review không thấy sự thay đổi hay bất thường gì thì comment là đã review xong.
