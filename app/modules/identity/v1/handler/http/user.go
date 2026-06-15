@@ -92,5 +92,5 @@ func (u *UserHandler) Update(ctx *gin.Context) {
 
 // Delete func
 func (u *UserHandler) Delete(ctx *gin.Context) {
-	// TODO
+	panic("internal eror")
 }
