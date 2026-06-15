@@ -1,0 +1,3 @@
+Viết tài liệu chi tiết cho các APIs được hiện thực trong repo này.
+Mỗi API bao gồm giải thích chi tiết làm gì? có CURL ví dụ, có sequence diagram ...
+Tài liệu phải dành cho cả người tech và non-tech hiểu được.

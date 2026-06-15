@@ -1,0 +1,3 @@
+Trong mỗi commit và merge request (hoặc pull request) thì tiến hành review kỹ code, 
+kiểm tra các lỗi bảo mật, loop, race condition, crash, SQL injection ...
+Kiểm tra cả config có hợp lệ không, tránh duplicate key config.
