@@ -88,11 +88,11 @@ func (u *UserHandler) Detail(ctx *gin.Context) {
 // Update func
 func (u *UserHandler) Update(ctx *gin.Context) {
 	// TODO
-	// panic("internal error")
+	panic("internal error")
 }
 
 // Delete func
 func (u *UserHandler) Delete(ctx *gin.Context) {
 	// TODO
-	// panic("internal error")
+	panic("internal error")
 }
