@@ -35,4 +35,5 @@ func main() {
 
 	router := routes.SetupRouter(mySQL)
 	router.Run(config.GetPort())
+	panic(1)
 }
