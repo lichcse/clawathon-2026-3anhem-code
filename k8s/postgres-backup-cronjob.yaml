@@ -1,0 +1,59 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: voice-chat
+spec:
+  schedule: "0 2 * * *"   # Daily at 2am UTC
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: pg-dump
+              image: postgres:15-alpine
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  FILENAME=voicechat_$(date +%Y%m%d_%H%M%S).sql.gz
+                  pg_dump -h postgres-service -U $POSTGRES_USER $POSTGRES_DB | gzip > /backup/$FILENAME
+                  echo "Backup written: $FILENAME"
+              env:
+                - name: POSTGRES_DB
+                  valueFrom:
+                    configMapKeyRef:
+                      name: voice-chat-config
+                      key: DB_NAME
+                - name: POSTGRES_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: voice-chat-secret
+                      key: DB_USER
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: voice-chat-secret
+                      key: DB_PASSWORD
+              volumeMounts:
+                - name: backup-storage
+                  mountPath: /backup
+          volumes:
+            - name: backup-storage
+              persistentVolumeClaim:
+                claimName: postgres-backup-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-backup-pvc
+  namespace: voice-chat
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 5Gi

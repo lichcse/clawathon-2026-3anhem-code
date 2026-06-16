@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { ApiService } from '@/services/api';
 import type { Room } from '@/types';
+import { RoomCardSkeleton } from '../components/common/Skeleton';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ export default function LandingPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newRoom, setNewRoom] = useState({ name: '', description: '' });
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingRooms, setIsLoadingRooms] = useState(true);
 
   useEffect(() => {
     // Delay after leaving a room to allow the backend WS handler to finish
@@ -30,11 +32,14 @@ export default function LandingPage() {
   }, []);
 
   const loadRooms = async () => {
+    setIsLoadingRooms(true);
     try {
       const response = await ApiService.listRooms();
       setRooms(response.rooms || []);
     } catch (error) {
       addToast('Failed to load rooms', 'error');
+    } finally {
+      setIsLoadingRooms(false);
     }
   };
 
@@ -118,27 +123,37 @@ export default function LandingPage() {
           </form>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {rooms.map((room) => (
-            <div
-              key={room.id}
-              className="bg-gray-800 rounded-lg p-6 hover:bg-gray-750 cursor-pointer transition"
-              onClick={() => navigate(`/rooms/${room.id}`)}
-            >
-              <h3 className="text-xl font-bold mb-2">{room.name}</h3>
-              <p className="text-gray-400 mb-4">{room.description}</p>
-              <div className="flex justify-between text-sm text-gray-500">
-                <span>👥 {room.member_count ?? 0} / {room.max_users} members</span>
-                <span>{room.is_public ? 'Public' : 'Private'}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {rooms.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-400 text-lg">No rooms available. Create one to get started!</p>
+        {isLoadingRooms ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <RoomCardSkeleton />
+            <RoomCardSkeleton />
+            <RoomCardSkeleton />
           </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {rooms.map((room) => (
+                <div
+                  key={room.id}
+                  className="bg-gray-800 rounded-lg p-6 hover:bg-gray-750 cursor-pointer transition"
+                  onClick={() => navigate(`/rooms/${room.id}`)}
+                >
+                  <h3 className="text-xl font-bold mb-2">{room.name}</h3>
+                  <p className="text-gray-400 mb-4">{room.description}</p>
+                  <div className="flex justify-between text-sm text-gray-500">
+                    <span>👥 {room.member_count ?? 0} / {room.max_users} members</span>
+                    <span>{room.is_public ? 'Public' : 'Private'}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {rooms.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-gray-400 text-lg">No rooms available. Create one to get started!</p>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

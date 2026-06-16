@@ -2,21 +2,27 @@ package api
 
 import (
 	"database/sql"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 
 	"voicechat/internal/api/handler"
 	"voicechat/internal/api/middleware"
+	"voicechat/internal/infra/metrics"
 	"voicechat/internal/repository"
 	"voicechat/internal/service"
 	"voicechat/internal/ws"
 )
 
 func NewRouter(db *sql.DB, redisClient *redis.Client, jwtSecret string) *gin.Engine {
-	router := gin.Default()
+	router := gin.New()
 
-	// Add CORS middleware
+	// Global middleware
+	router.Use(middleware.Recovery())
+	router.Use(metrics.GinMiddleware())
+
+	// CORS middleware
 	router.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
@@ -42,36 +48,43 @@ func NewRouter(db *sql.DB, redisClient *redis.Client, jwtSecret string) *gin.Eng
 	// Initialize handlers
 	authHandler := handler.NewAuthHandler(authService)
 	roomHandler := handler.NewRoomHandler(roomService, seatService)
-	healthHandler := handler.NewHealthHandler()
+	healthHandler := handler.NewHealthHandler(db, redisClient)
 
-	// Health check
-	router.GET("/health", healthHandler.Health)
+	// Observability endpoints (no auth, no rate limit)
+	router.GET("/health", healthHandler.Live)
+	router.GET("/ready", healthHandler.Ready)
+	router.GET("/metrics", gin.WrapH(metrics.Handler()))
 
-	// Auth routes (public)
-	authGroup := router.Group("/api/v1/auth")
+	// API routes with rate limiting
+	apiGroup := router.Group("/api/v1")
+	apiGroup.Use(middleware.RateLimit(redisClient, 100, time.Minute))
 	{
-		authGroup.POST("/register", authHandler.Register)
-		authGroup.POST("/login", authHandler.Login)
-		authGroup.GET("/me", middleware.AuthMiddleware(jwtSecret), authHandler.GetMe)
+		// Auth routes
+		authGroup := apiGroup.Group("/auth")
+		{
+			authGroup.POST("/register", authHandler.Register)
+			authGroup.POST("/login", authHandler.Login)
+			authGroup.GET("/me", middleware.AuthMiddleware(jwtSecret), authHandler.GetMe)
+		}
+
+		// Room routes
+		roomGroup := apiGroup.Group("/rooms")
+		{
+			roomGroup.GET("", roomHandler.ListRooms)
+			roomGroup.POST("", middleware.AuthMiddleware(jwtSecret), roomHandler.CreateRoom)
+			roomGroup.GET("/:room_id", roomHandler.GetRoom)
+			roomGroup.DELETE("/:room_id", middleware.AuthMiddleware(jwtSecret), roomHandler.DeleteRoom)
+		}
+
+		// Seat routes
+		seatGroup := apiGroup.Group("/rooms/:room_id/seats")
+		{
+			seatGroup.POST("/:seat_id/occupy", middleware.AuthMiddleware(jwtSecret), roomHandler.OccupySeat)
+			seatGroup.DELETE("/:seat_id", middleware.AuthMiddleware(jwtSecret), roomHandler.VacateSeat)
+		}
 	}
 
-	// Room routes
-	roomGroup := router.Group("/api/v1/rooms")
-	{
-		roomGroup.GET("", roomHandler.ListRooms)
-		roomGroup.POST("", middleware.AuthMiddleware(jwtSecret), roomHandler.CreateRoom)
-		roomGroup.GET("/:room_id", roomHandler.GetRoom)
-		roomGroup.DELETE("/:room_id", middleware.AuthMiddleware(jwtSecret), roomHandler.DeleteRoom)
-	}
-
-	// Seat routes
-	seatGroup := router.Group("/api/v1/rooms/:room_id/seats")
-	{
-		seatGroup.POST("/:seat_id/occupy", middleware.AuthMiddleware(jwtSecret), roomHandler.OccupySeat)
-		seatGroup.DELETE("/:seat_id", middleware.AuthMiddleware(jwtSecret), roomHandler.VacateSeat)
-	}
-
-	// WebSocket
+	// WebSocket (no rate limit — long-lived connection)
 	wsHub := ws.NewHub(redisClient)
 	go wsHub.Run()
 

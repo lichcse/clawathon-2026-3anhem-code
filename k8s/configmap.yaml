@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: voice-chat-config
+  namespace: voice-chat
+data:
+  ENVIRONMENT: production
+  SERVER_PORT: "8080"
+  DB_HOST: postgres-service
+  DB_PORT: "5432"
+  DB_NAME: voicechat
+  REDIS_ADDR: redis-service:6379

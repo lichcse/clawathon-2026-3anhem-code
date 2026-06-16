@@ -2,22 +2,33 @@ package cache
 
 import (
 	"context"
-	"fmt"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
 
 func NewRedisClient(addr string) (*redis.Client, error) {
-	client := redis.NewClient(&redis.Options{
-		Addr: addr,
+	rdb := redis.NewClient(&redis.Options{
+		Addr:            addr,
+		DialTimeout:     5 * time.Second,
+		ReadTimeout:     3 * time.Second,
+		WriteTimeout:    3 * time.Second,
+		PoolSize:        20,
+		MinIdleConns:    5,
+		MaxRetries:      3,
+		MinRetryBackoff: 100 * time.Millisecond,
+		MaxRetryBackoff: 1 * time.Second,
+		OnConnect: func(ctx context.Context, cn *redis.Conn) error {
+			return nil
+		},
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*1000000000) // 5 seconds
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if err := client.Ping(ctx).Err(); err != nil {
-		return nil, fmt.Errorf("failed to connect to redis: %w", err)
+	if err := rdb.Ping(ctx).Err(); err != nil {
+		return nil, err
 	}
 
-	return client, nil
+	return rdb, nil
 }

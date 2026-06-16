@@ -2,6 +2,12 @@ import { Message } from '@/types';
 
 const WS_BASE = import.meta.env.DEV ? 'ws://localhost:8080/ws' : '/ws';
 
+interface ReconnectCallbacks {
+  onReconnecting?: (attempt: number, max: number) => void;
+  onReconnected?: () => void;
+  onReconnectFailed?: () => void;
+}
+
 export class WebSocketService {
   private static instance: WebSocketService;
   private ws: WebSocket | null = null;
@@ -9,12 +15,23 @@ export class WebSocketService {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
+  private wasReconnecting = false;
+
+  private onReconnecting?: (attempt: number, max: number) => void;
+  private onReconnected?: () => void;
+  private onReconnectFailed?: () => void;
 
   static getInstance(): WebSocketService {
     if (!WebSocketService.instance) {
       WebSocketService.instance = new WebSocketService();
     }
     return WebSocketService.instance;
+  }
+
+  setCallbacks(cbs: ReconnectCallbacks) {
+    this.onReconnecting = cbs.onReconnecting;
+    this.onReconnected = cbs.onReconnected;
+    this.onReconnectFailed = cbs.onReconnectFailed;
   }
 
   connect(token: string, roomId?: string): Promise<void> {
@@ -25,6 +42,10 @@ export class WebSocketService {
 
         this.ws.onopen = () => {
           console.log('WebSocket connected');
+          if (this.wasReconnecting) {
+            this.onReconnected?.();
+            this.wasReconnecting = false;
+          }
           this.reconnectAttempts = 0;
           if (roomId) {
             this.emit('join_room', { room_id: roomId });
@@ -106,11 +127,16 @@ export class WebSocketService {
   private attemptReconnect(token: string, roomId?: string) {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
+      this.wasReconnecting = true;
       const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
-      console.log(`Attempting to reconnect in ${delay}ms...`);
+      console.log(`Attempting to reconnect in ${delay}ms... (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+      this.onReconnecting?.(this.reconnectAttempts, this.maxReconnectAttempts);
       setTimeout(() => {
         this.connect(token, roomId).catch(() => {});
       }, delay);
+    } else {
+      console.error('Max reconnect attempts reached.');
+      this.onReconnectFailed?.();
     }
   }
 
