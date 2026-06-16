@@ -1,5 +1,9 @@
 Viết tài liệu chi tiết cho các APIs được hiện thực trong repo này.
+
 Mỗi API là 1 file docs riêng không viết gộp thành 1 file.
+
 Tài liệu mỗi API bao gồm giải thích chi tiết làm gì? có CURL ví dụ, có sequence diagram ...
+
 Tài liệu phải dành cho cả người tech và non-tech hiểu được.
-Tài liệu càng trực quan càng tốt. Có thể là hình ảnh ...
+
+Tài liệu càng trực quan càng tốt. Có hình ảnh minh hoạ flow thì càng tốt.
