@@ -13,7 +13,9 @@ func NewSeatService(seatRepo *repository.SeatRepository) *SeatService {
 	return &SeatService{seatRepo: seatRepo}
 }
 
-func (s *SeatService) OccupySeat(seatID, userID string) error {
+func (s *SeatService) OccupySeat(seatID, userID, roomID string) error {
+	// Vacate any seat this user currently holds in this room first
+	_ = s.seatRepo.VacateSeatsByUser(roomID, userID)
 	return s.seatRepo.OccupySeat(seatID, userID)
 }
 

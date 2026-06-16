@@ -11,6 +11,7 @@ export interface Room {
   owner_id: string;
   max_users: number;
   is_public: boolean;
+  member_count: number;
   seats: Seat[];
   members: Member[];
 }
@@ -20,10 +21,12 @@ export interface Seat {
   row: number;
   col: number;
   occupied_by_id: string | null;
+  username?: string | null;
 }
 
 export interface Member {
   user_id: string;
+  username: string;
   is_muted: boolean;
 }
 

@@ -7,7 +7,6 @@ import { useUIStore } from '@/stores/useUIStore';
 import { ApiService } from '@/services/api';
 import { WebSocketService } from '@/services/websocket';
 import { audioService } from '@/services/audio';
-import type { Room } from '@/types';
 
 export default function RoomPage() {
   const { roomId } = useParams<{ roomId: string }>();
@@ -17,7 +16,11 @@ export default function RoomPage() {
   const room = useRoomStore((state) => state.room);
   const setRoom = useRoomStore((state) => state.setRoom);
   const seats = useRoomStore((state) => state.seats);
+  const members = useRoomStore((state) => state.members);
   const updateSeat = useRoomStore((state) => state.updateSeat);
+  const setSnapshot = useRoomStore((state) => state.setSnapshot);
+  const addMember = useRoomStore((state) => state.addMember);
+  const removeMember = useRoomStore((state) => state.removeMember);
   const isMicOn = useAudioStore((state) => state.isMicOn);
   const toggleMic = useAudioStore((state) => state.toggleMic);
   const addToast = useUIStore((state) => state.addToast);
@@ -62,32 +65,41 @@ export default function RoomPage() {
     try {
       await wsService.connect(token!, roomId!);
 
-      // Handle seat updates
-      wsService.on('seat_occupied', ({ seat_id, user_id }: any) => {
-        updateSeat(seat_id, user_id);
+      wsService.on('room_snapshot', ({ seats, members: snapMembers }: any) => {
+        setSnapshot(seats ?? [], snapMembers ?? []);
+      });
+
+      wsService.on('seat_occupied', ({ seat_id, user_id, username }: any) => {
+        updateSeat(seat_id, user_id, username);
         if (user_id !== user?.id) {
-          addToast('User sat down', 'info');
+          addToast(`${username || 'Someone'} sat down`, 'info');
         }
       });
 
       wsService.on('seat_vacated', ({ seat_id }: any) => {
-        updateSeat(seat_id, null);
+        updateSeat(seat_id, null, null);
       });
 
-      wsService.on('user_joined', ({ username }: any) => {
-        addToast(`${username} joined the room`, 'info');
-      });
-
-      wsService.on('user_left', ({ user_id }: any) => {
+      wsService.on('user_joined', ({ user_id, username }: any) => {
+        addMember({ user_id, username: username || user_id, is_muted: false });
         if (user_id !== user?.id) {
-          addToast('User left the room', 'info');
+          addToast(`${username || 'Someone'} joined the room`, 'info');
         }
       });
 
-      // Handle audio frames
+      wsService.on('user_left', ({ user_id }: any) => {
+        audioService.removeRemoteStream(user_id);
+        const m = members.get(user_id);
+        removeMember(user_id);
+        if (user_id !== user?.id) {
+          addToast(`${m?.username || 'Someone'} left the room`, 'info');
+        }
+      });
+
       wsService.on('audio', ({ user_id, data }: any) => {
-        // In a real implementation, decode and play audio
-        console.log('Received audio from', user_id);
+        if (user_id !== user?.id && data) {
+          audioService.playRemoteAudio(user_id, data);
+        }
       });
     } catch (error) {
       addToast('Failed to connect to room', 'error');
@@ -98,6 +110,13 @@ export default function RoomPage() {
   const setupAudio = async () => {
     try {
       await audioService.startCapture();
+      const wsService = WebSocketService.getInstance();
+      audioService.onAudioData = (data) => {
+        const { seats } = useRoomStore.getState();
+        const isSitting = seats.some((s) => s.occupied_by_id === user?.id);
+        if (!isSitting) return;
+        wsService.emit('audio', { data });
+      };
       addToast('Microphone enabled', 'success');
     } catch (error) {
       addToast('Failed to access microphone', 'error');
@@ -111,7 +130,7 @@ export default function RoomPage() {
         ws?.emit('sit_down', { seat_id: seatId });
       }
     } catch (error) {
-      addToast('Failed to sit down', 'error');
+      addToast(error instanceof Error ? error.message : 'Failed to sit down', 'error');
     }
   };
 
@@ -127,12 +146,8 @@ export default function RoomPage() {
   };
 
   const handleLeaveRoom = async () => {
-    try {
-      ws?.emit('leave_room', {});
-      navigate('/');
-    } catch (error) {
-      addToast('Failed to leave room', 'error');
-    }
+    ws?.emit('leave_room', {});
+    navigate('/', { state: { justLeft: true } });
   };
 
   if (isLoading) {
@@ -150,6 +165,8 @@ export default function RoomPage() {
       </div>
     );
   }
+
+  const memberList = Array.from(members.values());
 
   return (
     <div className="min-h-screen bg-gray-900 p-8">
@@ -181,51 +198,58 @@ export default function RoomPage() {
           </div>
         </div>
 
-        <div className="bg-gray-800 rounded-lg p-8 mb-8">
-          <h2 className="text-2xl font-bold mb-6">Seats (3x6)</h2>
-          <div className="space-y-4">
-            {[1, 2, 3].map((row) => (
-              <div key={row} className="flex gap-4">
-                {[1, 2, 3, 4, 5, 6].map((col) => {
-                  const seat = seats.find((s) => s.row === row && s.col === col);
-                  const isOccupied = seat?.occupied_by_id !== null;
-                  const isUserSeat = seat?.occupied_by_id === user?.id;
+        <div className="space-y-4 mb-8">
+          {[1, 2, 3].map((row) => (
+            <div key={row} className="flex gap-4">
+              {[1, 2, 3, 4, 5, 6].map((col) => {
+                const seat = seats.find((s) => s.row === row && s.col === col);
+                if (!seat) return null;
+                const isOccupied = seat.occupied_by_id !== null;
+                const isUserSeat = seat.occupied_by_id === user?.id;
+                const occupantName = isUserSeat
+                  ? 'You'
+                  : seat.username || members.get(seat.occupied_by_id ?? '')?.username || null;
 
-                  return (
-                    <button
-                      key={seat?.id}
-                      onClick={() => {
-                        if (isUserSeat) {
-                          handleStandUp(seat.id);
-                        } else if (!isOccupied) {
-                          handleSitDown(seat.id);
-                        }
-                      }}
-                      disabled={isOccupied && !isUserSeat}
-                      className={`flex-1 py-12 rounded text-center font-semibold transition ${
-                        isUserSeat
-                          ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer'
-                          : isOccupied
-                          ? 'bg-gray-600 opacity-50 cursor-not-allowed'
-                          : 'bg-gray-700 hover:bg-gray-600 cursor-pointer'
-                      }`}
-                    >
-                      <div>Seat {row}-{col}</div>
-                      {isOccupied && <div className="text-sm mt-2">Occupied</div>}
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
+                return (
+                  <button
+                    key={seat.id}
+                    onClick={() => {
+                      if (isUserSeat) {
+                        handleStandUp(seat.id);
+                      } else if (!isOccupied) {
+                        handleSitDown(seat.id);
+                      }
+                    }}
+                    disabled={isOccupied && !isUserSeat}
+                    className={`flex-1 py-8 rounded text-center font-semibold transition ${
+                      isUserSeat
+                        ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer'
+                        : isOccupied
+                        ? 'bg-gray-600 opacity-60 cursor-not-allowed'
+                        : 'bg-gray-700 hover:bg-gray-600 cursor-pointer'
+                    }`}
+                  >
+                    <div className="text-sm text-gray-300">Seat {row}-{col}</div>
+                    {occupantName ? (
+                      <div className="mt-1 font-bold truncate px-2">{occupantName}</div>
+                    ) : (
+                      <div className="mt-1 text-gray-500 text-sm">Empty</div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </div>
 
         <div className="bg-gray-800 rounded-lg p-8">
-          <h2 className="text-2xl font-bold mb-4">Members ({room.members?.length || 0})</h2>
+          <h2 className="text-2xl font-bold mb-4">Members ({memberList.length})</h2>
           <div className="space-y-2">
-            {room.members?.map((member) => (
+            {memberList.map((member) => (
               <div key={member.user_id} className="flex justify-between items-center p-3 bg-gray-700 rounded">
-                <span className="font-semibold">{member.user_id === user?.id ? 'You' : member.user_id}</span>
+                <span className="font-semibold">
+                  {member.user_id === user?.id ? `${member.username} (You)` : member.username}
+                </span>
                 <span className="text-gray-400">{member.is_muted ? '🔇 Muted' : '🔊 Unmuted'}</span>
               </div>
             ))}

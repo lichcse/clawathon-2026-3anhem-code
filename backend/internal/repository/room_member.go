@@ -64,6 +64,36 @@ func (r *RoomMemberRepository) GetMembers(roomID string) ([]domain.RoomMember, e
 	return members, rows.Err()
 }
 
+type MemberWithUsername struct {
+	UserID   string
+	Username string
+	IsMuted  bool
+}
+
+func (r *RoomMemberRepository) GetMembersWithUsername(roomID string) ([]MemberWithUsername, error) {
+	query := `
+		SELECT rm.user_id, u.username, rm.is_muted
+		FROM room_members rm
+		JOIN users u ON u.id = rm.user_id
+		WHERE rm.room_id = $1 AND rm.left_at IS NULL
+	`
+	rows, err := r.db.Query(query, roomID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var members []MemberWithUsername
+	for rows.Next() {
+		var m MemberWithUsername
+		if err := rows.Scan(&m.UserID, &m.Username, &m.IsMuted); err != nil {
+			return nil, err
+		}
+		members = append(members, m)
+	}
+	return members, rows.Err()
+}
+
 func (r *RoomMemberRepository) SetMuteStatus(roomID, userID string, isMuted bool) error {
 	query := `
 		UPDATE room_members

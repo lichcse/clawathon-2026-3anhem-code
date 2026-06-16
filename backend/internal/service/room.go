@@ -35,6 +35,7 @@ type RoomDTO struct {
 	OwnerID     string      `json:"owner_id"`
 	MaxUsers    int         `json:"max_users"`
 	IsPublic    bool        `json:"is_public"`
+	MemberCount int         `json:"member_count"`
 	Seats       []SeatDTO   `json:"seats"`
 	Members     []MemberDTO `json:"members"`
 }
@@ -48,6 +49,7 @@ type SeatDTO struct {
 
 type MemberDTO struct {
 	UserID   string `json:"user_id"`
+	Username string `json:"username"`
 	IsMuted  bool   `json:"is_muted"`
 }
 
@@ -90,9 +92,15 @@ func (s *RoomService) GetRoom(roomID string) (*RoomDTO, error) {
 		return nil, err
 	}
 
-	members, err := s.memberRepo.GetMembers(roomID)
+	members, err := s.memberRepo.GetMembersWithUsername(roomID)
 	if err != nil {
 		return nil, err
+	}
+
+	// Build username lookup for seat enrichment
+	usernameMap := make(map[string]string, len(members))
+	for _, m := range members {
+		usernameMap[m.UserID] = m.Username
 	}
 
 	seatDTOs := make([]SeatDTO, len(seats))
@@ -108,8 +116,9 @@ func (s *RoomService) GetRoom(roomID string) (*RoomDTO, error) {
 	memberDTOs := make([]MemberDTO, len(members))
 	for i, member := range members {
 		memberDTOs[i] = MemberDTO{
-			UserID:  member.UserID,
-			IsMuted: member.IsMuted,
+			UserID:   member.UserID,
+			Username: member.Username,
+			IsMuted:  member.IsMuted,
 		}
 	}
 
@@ -120,6 +129,7 @@ func (s *RoomService) GetRoom(roomID string) (*RoomDTO, error) {
 		OwnerID:     room.OwnerID,
 		MaxUsers:    room.MaxUsers,
 		IsPublic:    room.IsPublic,
+		MemberCount: len(members),
 		Seats:       seatDTOs,
 		Members:     memberDTOs,
 	}, nil
@@ -133,6 +143,7 @@ func (s *RoomService) ListRooms(limit, offset int) ([]RoomDTO, error) {
 
 	var dtos []RoomDTO
 	for _, room := range rooms {
+		count, _ := s.roomRepo.GetMemberCount(room.ID)
 		dto := RoomDTO{
 			ID:          room.ID,
 			Name:        room.Name,
@@ -140,6 +151,7 @@ func (s *RoomService) ListRooms(limit, offset int) ([]RoomDTO, error) {
 			OwnerID:     room.OwnerID,
 			MaxUsers:    room.MaxUsers,
 			IsPublic:    room.IsPublic,
+			MemberCount: count,
 		}
 		dtos = append(dtos, dto)
 	}

@@ -30,7 +30,9 @@ type BroadcastMessage struct {
 
 type Client struct {
 	ID       string
+	Username string
 	RoomID   string
+	SeatID   string // current seat, tracked locally to broadcast vacated on move
 	conn     interface{} // *websocket.Conn
 	send     chan []byte
 	hub      *Hub

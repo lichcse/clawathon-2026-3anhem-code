@@ -82,10 +82,11 @@ func (r *SeatRepository) GetSeatByID(seatID string) (*domain.Seat, error) {
 
 func (r *SeatRepository) OccupySeat(seatID, userID string) error {
 	now := time.Now()
+	// Allow same user to re-occupy (idempotent for double-click) but block others
 	query := `
 		UPDATE seats
 		SET occupied_by_id = $1, occupied_at = $2
-		WHERE id = $3 AND occupied_by_id IS NULL
+		WHERE id = $3 AND (occupied_by_id IS NULL OR occupied_by_id = $1)
 	`
 
 	result, err := r.db.Exec(query, userID, now, seatID)

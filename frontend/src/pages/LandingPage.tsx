@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { ApiService } from '@/services/api';
@@ -7,6 +7,7 @@ import type { Room } from '@/types';
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const addToast = useUIStore((state) => state.addToast);
@@ -16,7 +17,16 @@ export default function LandingPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    loadRooms();
+    // Delay after leaving a room to allow the backend WS handler to finish
+    // processing the leave_room event before we query the room list.
+    const delay = location.state?.justLeft ? 500 : 0;
+    const timer = setTimeout(loadRooms, delay);
+    const onVisible = () => { if (document.visibilityState === 'visible') loadRooms(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, []);
 
   const loadRooms = async () => {
@@ -118,7 +128,7 @@ export default function LandingPage() {
               <h3 className="text-xl font-bold mb-2">{room.name}</h3>
               <p className="text-gray-400 mb-4">{room.description}</p>
               <div className="flex justify-between text-sm text-gray-500">
-                <span>Seats: {room.members?.length || 0}/18</span>
+                <span>👥 {room.member_count ?? 0} / {room.max_users} members</span>
                 <span>{room.is_public ? 'Public' : 'Private'}</span>
               </div>
             </div>

@@ -12,7 +12,10 @@ export class ApiService {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, email, password }),
     });
-    if (!res.ok) throw new Error('Register failed');
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || 'Register failed');
+    }
     return res.json();
   }
 
@@ -22,7 +25,10 @@ export class ApiService {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
-    if (!res.ok) throw new Error('Login failed');
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || 'Login failed');
+    }
     return res.json();
   }
 
@@ -73,7 +79,10 @@ export class ApiService {
       method: 'POST',
       headers: this.getAuthHeader(),
     });
-    if (!res.ok) throw new Error('Occupy seat failed');
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || 'Occupy seat failed');
+    }
     return res.json();
   }
 
@@ -82,7 +91,10 @@ export class ApiService {
       method: 'DELETE',
       headers: this.getAuthHeader(),
     });
-    if (!res.ok) throw new Error('Vacate seat failed');
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || 'Vacate seat failed');
+    }
     return res.json();
   }
 }

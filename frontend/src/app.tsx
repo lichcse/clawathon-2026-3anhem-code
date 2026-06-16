@@ -1,5 +1,4 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect } from 'react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 import LoginPage from '@/pages/LoginPage';
@@ -8,17 +7,8 @@ import RoomPage from '@/pages/RoomPage';
 import ToastContainer from '@/components/common/ToastContainer';
 
 function App() {
-  const { isAuthenticated, token, setUser } = useAuthStore();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const { toasts } = useUIStore();
-
-  useEffect(() => {
-    // Restore auth on app load
-    const token = localStorage.getItem('token');
-    if (token && !isAuthenticated) {
-      // In a real app, validate token with backend
-      setUser({ id: '', username: '', email: '' }, token);
-    }
-  }, []);
 
   return (
     <BrowserRouter>

@@ -77,7 +77,8 @@ func NewRouter(db *sql.DB, redisClient *redis.Client, jwtSecret string) *gin.Eng
 
 	router.GET("/ws", middleware.AuthMiddleware(jwtSecret), func(c *gin.Context) {
 		userID := c.GetString("user_id")
-		ws.HandleWebSocket(c.Writer, c.Request, wsHub, userID, db, memberRepo, seatRepo)
+		username := c.GetString("username")
+		ws.HandleWebSocket(c.Writer, c.Request, wsHub, userID, username, db, memberRepo, seatRepo)
 	})
 
 	return router

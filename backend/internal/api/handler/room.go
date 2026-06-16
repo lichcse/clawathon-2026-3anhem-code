@@ -104,9 +104,10 @@ func (h *RoomHandler) DeleteRoom(c *gin.Context) {
 
 func (h *RoomHandler) OccupySeat(c *gin.Context) {
 	userID := c.GetString("user_id")
+	roomID := c.Param("room_id")
 	seatID := c.Param("seat_id")
 
-	err := h.seatService.OccupySeat(seatID, userID)
+	err := h.seatService.OccupySeat(seatID, userID, roomID)
 	if err != nil {
 		if err == domain.ErrSeatOccupied {
 			c.JSON(http.StatusConflict, gin.H{"error": "seat is already occupied"})

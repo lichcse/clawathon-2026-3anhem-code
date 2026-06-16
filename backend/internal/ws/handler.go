@@ -18,7 +18,7 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func HandleWebSocket(w http.ResponseWriter, r *http.Request, hub *Hub, userID string, db *sql.DB, memberRepo *repository.RoomMemberRepository, seatRepo *repository.SeatRepository) {
+func HandleWebSocket(w http.ResponseWriter, r *http.Request, hub *Hub, userID, username string, db *sql.DB, memberRepo *repository.RoomMemberRepository, seatRepo *repository.SeatRepository) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		fmt.Printf("WebSocket upgrade error: %v\n", err)
@@ -26,10 +26,11 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request, hub *Hub, userID st
 	}
 
 	client := &Client{
-		ID:   userID,
-		conn: conn,
-		send: make(chan []byte, 256),
-		hub:  hub,
+		ID:       userID,
+		Username: username,
+		conn:     conn,
+		send:     make(chan []byte, 256),
+		hub:      hub,
 	}
 
 	hub.register <- client
@@ -107,22 +108,38 @@ func handleClientMessage(msg Message, client *Client, hub *Hub, db *sql.DB, memb
 
 		// Send room snapshot
 		seats, _ := seatRepo.GetSeatsForRoom(roomID)
-		members, _ := memberRepo.GetMembers(roomID)
+		members, _ := memberRepo.GetMembersWithUsername(roomID)
+
+		// Build username lookup for seat enrichment
+		usernameMap := map[string]string{}
+		for _, m := range members {
+			usernameMap[m.UserID] = m.Username
+		}
 
 		seatDTOs := []map[string]interface{}{}
 		for _, seat := range seats {
-			seatDTOs = append(seatDTOs, map[string]interface{}{
-				"id":            seat.ID,
-				"row":           seat.RowNum,
-				"col":           seat.ColNum,
-				"occupied_by":   seat.OccupiedByID,
-			})
+			dto := map[string]interface{}{
+				"id":           seat.ID,
+				"row":          seat.RowNum,
+				"col":          seat.ColNum,
+				"occupied_by_id": seat.OccupiedByID,
+				"username":     nil,
+			}
+			if seat.OccupiedByID != nil {
+				dto["username"] = usernameMap[*seat.OccupiedByID]
+				// Track client's current seat
+				if *seat.OccupiedByID == client.ID {
+					client.SeatID = seat.ID
+				}
+			}
+			seatDTOs = append(seatDTOs, dto)
 		}
 
 		memberDTOs := []map[string]interface{}{}
 		for _, member := range members {
 			memberDTOs = append(memberDTOs, map[string]interface{}{
 				"user_id":  member.UserID,
+				"username": member.Username,
 				"is_muted": member.IsMuted,
 			})
 		}
@@ -138,9 +155,10 @@ func handleClientMessage(msg Message, client *Client, hub *Hub, db *sql.DB, memb
 		data, _ := json.Marshal(snapshot)
 		client.send <- data
 
-		// Broadcast user joined
+		// Broadcast user joined (include username so others can display it)
 		hub.BroadcastToRoom(roomID, "user_joined", map[string]interface{}{
 			"user_id":   client.ID,
+			"username":  client.Username,
 			"joined_at": time.Now().UnixMilli(),
 		})
 
@@ -150,10 +168,21 @@ func handleClientMessage(msg Message, client *Client, hub *Hub, db *sql.DB, memb
 			return
 		}
 
+		// Broadcast vacated for the old seat if moving to a different one
+		if client.SeatID != "" && client.SeatID != seatID {
+			hub.BroadcastToRoom(client.RoomID, "seat_vacated", map[string]interface{}{
+				"seat_id": client.SeatID,
+				"user_id": client.ID,
+			})
+		}
+		client.SeatID = seatID
+
+		// REST already occupied the seat; re-occupy is idempotent for same user
 		if err := seatRepo.OccupySeat(seatID, client.ID); err == nil {
 			hub.BroadcastToRoom(client.RoomID, "seat_occupied", map[string]interface{}{
-				"seat_id": seatID,
-				"user_id": client.ID,
+				"seat_id":  seatID,
+				"user_id":  client.ID,
+				"username": client.Username,
 			})
 		}
 
@@ -163,6 +192,7 @@ func handleClientMessage(msg Message, client *Client, hub *Hub, db *sql.DB, memb
 			return
 		}
 
+		client.SeatID = ""
 		if err := seatRepo.VacateSeat(seatID); err == nil {
 			hub.BroadcastToRoom(client.RoomID, "seat_vacated", map[string]interface{}{
 				"seat_id": seatID,
