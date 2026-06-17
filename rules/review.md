@@ -9,3 +9,5 @@ Comment các đoạn code cần sửa, nguyên nhân có thể gây lỗi hoặc
 Chỉ tiến hành review khi có sự thay đổi về code và config, ngoài ra thì bỏ qua phần review
 
 Nếu review không thấy sự thay đổi hay bất thường gì thì comment là đã review xong.
+
+Cố gắng đưa ra lời khuyên cập nhật code tốt hơn
