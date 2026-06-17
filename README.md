@@ -145,13 +145,3 @@ kubectl apply -f k8s/configmap.yaml
 kubectl apply -f k8s/secret.yaml      # update values first
 kubectl apply -f k8s/
 ```
-
-## Next Phase
-
-- WebRTC P2P (reduce bandwidth)
-- Chat messaging
-- Speaker queue system
-- Audience mode
-- Audio recording (S3)
-- Room persistence
-- Screen sharing
