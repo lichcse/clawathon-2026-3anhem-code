@@ -26,6 +26,7 @@ func identityModule(db *gorm.DB) {
 	iV1 := route.Group("/identity/v1")
 	{
 		v1.UserRoute(iV1, db)
+		v1.PostRoute(iV1, db)
 	}
 }
 
