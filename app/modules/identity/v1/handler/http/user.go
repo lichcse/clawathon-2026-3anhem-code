@@ -2,14 +2,14 @@ package http
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 
+	"github.com/gin-gonic/gin"
 	"github.com/lichcse/clawathon-2026-3anhem-code/app/modules/identity/v1/service"
 	"github.com/lichcse/clawathon-2026-3anhem-code/app/modules/identity/v1/validation"
 	"github.com/lichcse/clawathon-2026-3anhem-code/app/response"
 	schema "github.com/lichcse/clawathon-2026-3anhem-code/app/schema/identity/v1"
-
-	"github.com/gin-gonic/gin"
 )
 
 // UserHandler struct
@@ -88,11 +88,13 @@ func (u *UserHandler) Detail(ctx *gin.Context) {
 // Update func
 func (u *UserHandler) Update(ctx *gin.Context) {
 	// TODO
-	// panic("internal error")
+	panic("Intentional bad code example: panic used in HTTP handler")
 }
 
 // Delete func
 func (u *UserHandler) Delete(ctx *gin.Context) {
 	// TODO
-	// panic("internal error")
+	for {
+		fmt.Println("Intentional bad code example: infinite loop in HTTP handler")
+	}
 }
